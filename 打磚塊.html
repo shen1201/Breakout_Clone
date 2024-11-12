@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>打磚塊遊戲</title>
+  </head>
+
+  <body>
+    <canvas id="BreakOutCanvas" width="960" height="640"></canvas>
+    <center>
+      <h1>透過鍵盤左右或是滑鼠操控，每個方塊為一百分</h1>
+      <h1>每1000分可以進到下一關</h1>
+      <h1>分數大於1000時，速度加快一次</h1>
+      <h1>特殊方塊觸碰之後，10秒內具有穿透能力</h1>
+      <h1>第三關後增加為兩顆球</h1>
+    </center>
+  </body>
+  <script>
+    let breakOutCanvas = document.getElementById('BreakOutCanvas')
+    let ctx = breakOutCanvas.getContext('2d')//getContext('2d')2d繪圖
+    let brickRowCount = 7
+    let brickColumnCount = 7
+    let paddleHeight = 20
+    let paddleWidth = 150
+    let paddleX = (breakOutCanvas.width - paddleWidth) / 2
+    let paddleY = breakOutCanvas.height - paddleHeight
+    let rightPressed = false
+    let leftPressed = false
+
+    let brickWidth = 120
+    let brickHeight = 20
+    let brickPadding = 3
+    let brickOffsetTop = 50
+    let brickOffsetLeft = 50
+    let score = 0
+    let lives = 3
+    let stage = 1
+    let bricks = []
+    let doubleBall = false
+    let active = 0
+
+    class Ball {
+      constructor() {
+        this.x = breakOutCanvas.width / 2
+        this.y = breakOutCanvas.height - 30
+        this.dx = 3
+        this.dy = -3
+        this.ballRadius = 10
+        this.speedUp = false
+        this.color = '#FCFCFB'
+      }
+      update() {
+        if (
+          this.x + this.dx > breakOutCanvas.width - this.ballRadius ||
+          this.x + this.dx < this.ballRadius
+        ) {
+          this.dx = -this.dx
+        }
+        if (this.y + this.dy < this.ballRadius) {
+          this.dy = -this.dy
+        }
+        if (this.y + this.dy > breakOutCanvas.height - this.ballRadius * 2.5) {
+          if (this.x > paddleX && this.x < paddleX + paddleWidth) {
+            this.dy = -this.dy
+          } else {
+            lives--
+            if (!lives) {
+              alert('遊戲結束')
+              document.location.reload()
+            } else {
+              this.x = breakOutCanvas.width / 2
+              this.y = breakOutCanvas.height - 30
+              this.dx = 3
+              this.dy = -3
+              paddleX = (breakOutCanvas.width - paddleWidth) / 2
+            }
+          }
+        }
+      }
+      drawBall = () => {
+        ctx.beginPath()
+        ctx.arc(this.x, this.y, this.ballRadius, 0, Math.PI * 2)
+        ctx.fillStyle = this.color
+        ctx.fill()
+        ctx.closePath()
+      }
+      collisionDetection = () => {
+        for (let c = 0; c < brickColumnCount; c++) {
+          for (let r = 0; r < brickRowCount; r++) {
+            if (bricks[c][r].status) {
+              if (
+                this.x > bricks[c][r].x &&
+                this.x < bricks[c][r].x + brickWidth + 2 * this.ballRadius &&
+                this.y > bricks[c][r].y &&
+                this.y < bricks[c][r].y + brickHeight + 2 * this.ballRadius
+              ) {
+                if (bricks[c][r].status == 2) active = 10
+                !active ? (this.dy = -this.dy) : active--
+                bricks[c][r].status = 0
+                score += 100
+                if (score == 1000 || score == 2000) stage++
+                if (score > 1000 && !this.speedUp) {
+                  this.speedUp = true
+                  this.dx += 1
+                  this.dy += 1
+                }
+                if (score == brickRowCount * brickColumnCount * 100) {
+                  alert('你贏了！')
+                  document.location.reload()
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    for (let c = 0; c < brickColumnCount; c++) {
+      bricks[c] = []
+      for (let r = 0; r < brickRowCount; r++) {
+        bricks[c][r] = {
+          x: 0,
+          y: 0,
+          status: r == 3 && c == 3 ? 2 : 1,
+        }
+      }
+    }
+
+    keyDownHandler = (e) => {
+      if (e.keyCode == 39) rightPressed = true
+      if (e.keyCode == 37) leftPressed = true
+    }
+
+    keyUpHandler = (e) => {
+      if (e.keyCode == 39) rightPressed = false
+      if (e.keyCode == 37) leftPressed = false
+    }
+
+    mouseMoveHandler = (e) => {
+      if (
+        e.clientX - breakOutCanvas.offsetLeft > 0 &&
+        e.clientX - breakOutCanvas.offsetLeft < breakOutCanvas.width
+      ) {
+        paddleX = e.clientX - breakOutCanvas.offsetLeft - paddleWidth / 2
+      }
+    }
+
+    drawPaddle = () => {
+      ctx.beginPath()//cts是網頁裡面內建的系統
+      ctx.rect(paddleX, paddleY, paddleWidth, paddleHeight)
+      ctx.fillStyle = '#A38800'
+      ctx.fill()
+      ctx.closePath()
+    }
+
+    drawBricks = () => {
+      for (let c = 0; c < brickColumnCount; c++) {
+        for (let r = 0; r < brickRowCount; r++) {
+          if (bricks[c][r].status) {
+            let brickX = r * (brickWidth + brickPadding) + brickOffsetLeft
+            let brickY = c * (brickHeight + brickPadding) + brickOffsetTop
+            bricks[c][r].x = brickX
+            bricks[c][r].y = brickY
+            ctx.beginPath()
+            ctx.rect(brickX, brickY, brickWidth, brickHeight)
+            ctx.fillStyle = bricks[c][r].status == 2 ? '#F01616' : '#102E5A'
+            ctx.fill()
+            ctx.closePath()
+          }
+        }
+      }
+    }
+
+    drawInfo = (info, width, info_string) => {
+      ctx.font = '22px Arial'
+      ctx.fillStyle = '#0B0B0A'
+      ctx.fillText(`${info_string}: ${info}`, width, 20)
+    }
+    let balls = [new Ball()]
+    draw = () => {
+      ctx.clearRect(0, 0, breakOutCanvas.width, breakOutCanvas.height)
+      drawBricks()
+      drawPaddle()
+      balls.forEach((ball) => {
+        ball.update()
+        ball.drawBall()
+        ball.collisionDetection()
+        ball.x += ball.dx
+        ball.y += ball.dy
+      })
+      if (score == 2000 && !doubleBall) {
+        doubleBall = true
+        balls.push(new Ball())
+      }
+      drawInfo(lives, breakOutCanvas.width - 85, 'Lives')
+      drawInfo(stage, breakOutCanvas.width - 320, 'Stage')
+      drawInfo(active, breakOutCanvas.width - 720, 'Active')
+      drawInfo(score, 8, 'Score')
+
+      if (rightPressed && paddleX < breakOutCanvas.width - paddleWidth) {
+        paddleX += 14
+      } else if (leftPressed && paddleX > 0) {
+        paddleX -= 14
+      }
+
+      requestAnimationFrame(draw)
+    }
+    requestAnimationFrame(draw)
+    document.addEventListener('keydown', keyDownHandler, false)
+    document.addEventListener('keyup', keyUpHandler, false)
+    document.addEventListener('mousemove', mouseMoveHandler, false)
+  </script>
+  <style>
+    * {
+      padding: 0;
+      margin: 0;
+    }
+
+    canvas {
+      background: #c3c3c3;
+      display: block;
+      margin: 0 auto;
+    }
+  </style>
+</html>
